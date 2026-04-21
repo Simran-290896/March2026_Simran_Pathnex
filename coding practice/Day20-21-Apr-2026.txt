@@ -1,0 +1,98 @@
+# Day 20 - DEBUG DAY
+
+## Ansible - Install httpd
+
+---
+- name: Install httpd
+  host: all
+  become: yes
+
+  tasks:
+    - name: Install httpd
+      yum:
+	name: httpd
+	state: present
+
+
+##    Terraform Task - Create EC2 (c6i.8xlarge)
+
+provider = "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_instance" "PathnexEC2" {
+  ami           = "ami-0abcd1234abcd1234"
+  instance_type = "c6i.8xlarge"
+
+  tags = {
+    Name = "Pathnex-EC2"
+  }
+}
+
+
+##    Kubernetes - Deployment with 3 Replicas
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pathnex-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: pathnex-app
+  template:
+    metadata:
+      labels:
+        app: pathnex-app
+    spec:
+      containers:
+        - name: app
+	  image: nginx
+	  ports:
+	    - containerPort: 80
+
+
+
+# Secrets & Credentials
+
+##    Jenkins Pipeline - Using Credentials
+You will learn how to **use credentials securely in Jenkins**.
+
+pipeline {
+    agent any
+    environment {
+        INSTITUTE_NAME = "Pathnex"
+    }
+    stages {
+        stage('Checkout') {
+	    steps {
+	        git url: 'https://github.com/Pathnex/sample-java-app.git'
+	    }
+	}
+	stage('Use Secret') {
+	    steps {
+	        withCredentials([string(credentialsId: 'Pathnex_API_KEY', variable: 'API_KEY')]) {
+		    sh 'echo "Using secret $API_KEY for $INSTITUTE_NAME"'
+		}
+	    }
+	}
+    }
+}
+
+
+##    GitLab CI - Using CI/CD Variables
+You will learn how to **use GitLab CI variables securely**.
+
+stages:
+  - build
+
+variables:
+  INSTITUTE_NAME: "Pathnex"
+  API_KEY: "PLACEHOLDER_SECRET"
+
+build:
+  stage: build
+  image: alpine:latest
+  script:
+    - echo "Using secret $API_KEY for $INSTITUTE_NAME"
