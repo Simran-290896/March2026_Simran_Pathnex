@@ -126,5 +126,5 @@ deploy-prod:
   image: alpine:latest
   script:
     - echo "Deploying $INSTITUTE_NAME to Prod environment"
-  when: manual work
+  when: manual 
 
