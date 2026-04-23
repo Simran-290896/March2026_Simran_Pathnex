@@ -1,0 +1,35 @@
+# Day 18 - Facts, Variables, Affinity, Log Archiving
+
+##    Ansible - Use Ansible Facts
+
+---
+- name: Show system facts for Pathnex
+  hosts: all
+
+  tasks:
+    - name: Print OS info
+      debug:
+        var: ansible_facts['os_family']
+
+    - name: Print IP address
+      debug:
+        var: ansible_facts['default_ipv4']['address']
+
+
+##    Terraform - Variables, Outputs, tfvars
+
+# variables.tf
+variable "instance_type" {
+  default = "c6a.12xlarge"
+}
+
+# main.tf
+resource "aws_instance" "PathnexServer" {
+  ami           = "ami-0abcd1234abcd1234"
+  instance_type = var.instance_type
+}
+
+# output
+output "pathnex-ip" {
+  value = aws_instance.PathnexServer.public_ip
+}
