@@ -1,0 +1,461 @@
+# Day 29 - Real-World Mini Project
+
+## Terraform Task 
+# Create EC2
+
+# Lets make all 5 instances together using count
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+variable "instance_types" {
+  default = {
+    "c5.xlarge"
+    "r5.2xlarge"
+    "r6i.4xlarge"
+    "c6i.8xlarge"
+    "c6a.12xlarge"
+  }
+}
+
+resource "aws_instance" "PathnexEC2" {
+  count         = length(var.instance_types)
+  ami           = "ami-0abcd1234abcd1234"
+  instance_type = var.instance_types[count.index]
+
+  tags = {
+    Name = "Pathnex-EC2-${count.index + 1}"
+  }
+}
+
+# Now lets make them one by one separately
+
+# EC2-instance = "c5.xlarge"
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_instance" "PathnexEC2" {
+  ami           = "ami-0abcd1234abcd1234"
+  instance_type = "c5.xlarge"
+
+  tags = {
+    Name = "Pathnex-EC2"
+  }
+}
+
+# EC2-instance = "r5.2xlarge"
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_instnce" "PathnexEC2" {
+  ami           = "ami-0abcd1234abcd1234"
+  instance_type = "r5.2xlarge"
+
+  tags = {
+    Name = "Pathnex-EC2"
+  }
+}
+
+# EC2-instance = "r6i.4xlarge"
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_instance" "PathnexEC2" {
+  ami           = "ami-0abcd1234abcd1234"
+  instance_type = "r6i.4xlarge"
+
+  tags = {
+    Name = "Pathnex-EC2"
+  }
+}
+
+# EC2-instance = "c6i.8xlarge"
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_instance" "PathnexEC2" {
+  ami           = "ami-0abcd1234abcd1234"
+  instance_type = "c6i.8xlarge"
+
+  tags = {
+    Name = "Pathnex-EC2"
+  }
+}
+
+# EC2-instance = "c6a.12xlarge"
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_instance" "PathnexEC2" {
+  ami           = "ami-0abcd1234abcd1234"
+  instance_type = "c6a.12xlarge"
+
+  tags = {
+    Name = "Pathnex-EC2"
+  }
+}
+
+# Security Group (c5.xlarge)
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_security_group" "PathnexSG" {
+  name = "PathnexSG"
+  description = "Pathnex SG for SSH"
+
+  ingress {
+    from_port  = 22
+    to_port    = 22
+    protocol   = "tcp"
+    cidr_block = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_instance" "PathnexEC2" {
+  ami                    = "ami-0abcd1234abcd1234"
+  instance_type        = "c5.xlarge"
+  vpc_security_group_ids = [aws_security_group.PathnexSG.id]
+
+  tags = {
+    Name = "Pathnex-EC2"
+  }
+}
+
+# Key Pair (c5.xlarge)
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_instance" "PathnexEC2" {
+  ami          = "ami-0abcd1234abcd1234"
+  instance_type = "c5.xlarge"
+  key_name      = aws_key_pair.PathnexKey.key_name
+
+  tags = {
+    Name = "Pathnex-EC2"
+  }
+}
+
+# EBS Volume
+
+resource "aws_ebs_volume" "PathnexVolume" {
+  availability_zone = "us-east-1"
+  size              = 20
+
+  tags = {
+    Name = "Pathnex-Volume"
+  }
+}
+
+# Output IP
+
+output "pathnex_ip" {
+  value = aws_instance.PathnexServer.public_ip
+}
+
+## Ansible
+# Install Nginx
+
+---
+- name: Install Nginx on Pathnex server
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Install nginx
+      yum:
+        name: nginx
+	state: present
+
+# Deploy "Welcome To Pathnex" HTML page
+
+---
+- name: Deploy Welcome to Pathnex HTML Page
+  hosts: all
+  become: yes
+
+  tasks:
+    
+    - name: Install Apache
+      yum:
+        name: httpd
+	state: present
+
+    - name: Start and enable Apache
+      service:
+        name: httpd
+	state: started
+	enabled: yes
+
+    - name: Deploy index.html page
+      copy:
+        dest: /var/www/html/index.html
+	content: |
+	  <html>
+	  <head>
+	      <title>PAthnex</title>
+	  </head>
+	  <body>
+	      <h1>Welcome to Pathnex</h1>
+	  </body>
+	  </html>
+
+    - name: Restart Apache
+      service: 
+        name: httpd
+	state: restarted
+
+# Start & enable service
+
+---
+- name: Start & enable service
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: enable service
+      service:
+        name: httpd
+	state: started
+	enabled: yes
+
+
+## Kubernetes
+
+# Create Deployment with PVC
+
+---
+apiversion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pathnex-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests: 
+      storage: 500Mi
+
+# Expose using NodePort
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: pathnex-nodeport
+spec:
+  type: NodePort
+  selector:
+    app: pathnex
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30080
+
+## Shell Script
+
+# Check CPU, Memory, Disk, IP, Top process
+
+#!/bin/bash
+
+echo "1. CPU Usage:"
+top -bn1 | grep "Cpu"
+
+echo
+echo "2. Memory Usage:"
+free -h
+
+echo
+echo "3. Disk Usage:"
+df -h
+
+echo
+echo "4. IP Address:"
+hostname -I
+
+echo
+echo "5. Top Process by Memory Usage:"
+ps -eo pid,ppid,cmd,%mem,%cpu  --sort=-%mem | head
+
+
+## Jenkins Pipeline
+
+pipeline {
+    agent any
+
+    environment {
+        INSTITUTE_NAME = "Pathnex"
+	TEAM           = "DevOps"
+	ENV            = "prod"
+	PROJECT        = "Pathnex-Training"
+    }
+
+    stages {
+
+        stage('Checkout Code') {
+	    steps {
+	        git 'https://github.com/your-repo/pathnex-devops.git'
+	    }
+	}
+
+	stage('Infrastructure - Terraform') {
+	    steps {
+	        sh '''
+		    echo "==== Terraform Infrastructure Stage ===="
+
+		    terraform init
+
+		    terraform validate
+
+		    terraform plan -out=tfplan
+
+		    terraform apply -auto-approve tfplan 
+		'''
+	    }
+	}
+
+	stage('App Deployment - Ansible') {
+	    steps {
+	        sh '''
+		    echo "===== Ansible Deployment Stage ===="
+
+		    ansible-playbook -i inventoryini deploy.yml
+		'''
+	    }
+	}
+
+	stage('Kubernetes Deployment') {
+	    steps {
+	        sh '''
+		    echo "==== Kubernetes Deployment Stage ===="
+
+		    kubectl apply -f deployment.yaml
+
+		    kubectl apply -f service.yaml
+		'''
+	    }
+	}
+
+	stage('Monitoring Checks') {
+	    steps {
+	        sh '''
+		    echo "==== System Health Checks ===="
+
+		    echo
+		    echo "1. CPU Usage:"
+		    top -bn1 | grep "Cpu"
+
+		    echo
+		    echo "2. Memory Usage:"
+		    free -h
+
+		    echo
+		    echo "3. Disk Usage:"
+		    df -h
+
+		    echo
+		    echo "4. IP Address:"
+		    hostname -I
+
+		    echo
+		    eco "5. Top Process by Memory Usage:"
+		    ps -eo pid,ppid,cmd,%mem,%cpu --sort=-%mem | head
+		'''
+	    }
+	}
+    }
+    post {
+
+        always {
+	    echo "Pipeline execution completed."
+	}
+
+	failure {
+	    echo "Deployment Failed!"
+	}
+    }
+}
+
+## GitLab CI
+
+stages:
+  - infrastructure
+  - app_deployment
+  - monitoring_checks
+
+  variables:
+    INSTITUTE_NAME: "Pathnex"
+    TEAM: "DevOps"
+    ENV: "prod"
+    PROJECT: "Pathnex-Training"
+
+  infrastructure:
+    stage: infrastructure
+
+    script: 
+      - echo "==== Terraform Infrastructure Stage ===="
+
+      - terraform init
+
+      - terraform validate
+
+      - terraform plan -out=tfplan
+
+      - terraform apply -auto-approve tfplan
+
+    tags:
+      - terraform
+
+    app_deployment:
+      stage: app_deployment
+
+      script:
+        - echo "==== Ansible Deployment Stage ===="
+
+	- ansible-playbook -i inventory.ini deploy.yml
+
+	- echo "==== Kubernetes deployment Stage ===="
+	 
+	- kubectl apply -f deployment.yaml
+
+	- kubectl apply -f service.yaml
+
+      tags:
+        - deployment
+
+    monitoring_checks:
+      stage: monitoring_checks
+
+      script:
+        - echo "==== System Health Checks ===="
+
+	- echo "1. CPU Usage:"
+	- top -bn1 | grep "Cpu"
+
+	- echo "2. Memory Usage:"
+	- free -h
+	 
+	- echo "3. Disk Usage:"
+	- df -h
+
+	- echo "4. IP Address:"
+	- hostname -I
+
+	- echo "5. Top Process by Memory Usage:"
+	ps -eo pid,ppid,cmd,%mem,%cpu --sort=-%mem | head
+
+      tags:
+        - monitoring
