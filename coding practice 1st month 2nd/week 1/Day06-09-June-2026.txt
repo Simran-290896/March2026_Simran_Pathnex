@@ -1,0 +1,91 @@
+# Day - 06 - DEBUG DAY
+
+## Ansible - Install Nginx 
+
+- name: Install Nginx
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Install Nginx
+      yum:
+        name: nginx
+	state: present
+
+
+## Terraform - Create instance (t2.micro)
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_instance" "PathnexEC2" {
+  ami           = "ami-0abcd1234abcd1234"
+  instance_type = "t2.micro"
+
+  tags {
+    Name = PathnexEC2
+  }
+}
+
+## Kubernetes Task - Create Nginx Pod
+
+apiVersion: v1
+kind: pod
+metadata:
+  
+  name: Pathnex-pod
+spec:
+  containers:
+    - name: app
+      image: nginx:latest
+      ports:
+        - containerPort: 80
+
+## Jenkins Pipeline - Debugging
+
+pipeline {
+    agent any
+    stages {
+        stage('Checkout') {
+	    steps {
+	        git brach: 'main', url: 'https://github.com/Pathnex/sample-java-app.git'
+	    }
+	}
+	stage('Build') {
+	    steps {
+	        sh '''
+		mvn clean compile || { echo "Compile failed"; exit 1; }
+		'''
+	    }
+	}
+	stage('Test') {
+	    steps {
+	        sh '''
+		mvn test || { echo "Tests failed"; exit 1; }
+		'''
+	    }
+	}
+    }	
+}
+
+## GitLab CI - Debugging
+
+stages:
+  - build
+  - test
+
+build:
+  stage: buld
+  image: maven:3.8.1-jdk-17
+  script:
+    - git clone https://github.com/Pathnex/sample-java=app.git
+    - cd sample-java-app
+    - mvn clean compile || { echo "Compile failed"; exit 1; }
+
+tests:
+  stage: test
+  image: maven:3.8.1-jdk-17
+  script:
+    - cd sample-java-app
+    - mvn test || { echo "Tests failed"; exit 1; }
