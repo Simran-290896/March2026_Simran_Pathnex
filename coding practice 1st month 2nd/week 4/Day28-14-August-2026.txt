@@ -1,0 +1,90 @@
+# Day 28 - Debug Day
+
+## Ansible - Install nginx
+
+---
+- name: Install nginx
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: install nginx
+      yum:
+        name: nginx
+	state: present
+
+## Terraform - Create S3 Bucket
+
+provider = aws {
+  region= "us-east-1"
+}
+
+resource "aws_s3_bucket" "bucket" {
+  bucket = pathnex-bucket
+}
+
+resource "aws_s3_bucket_acl" "bucket_acl" {
+  bucket = aws_s3_bucket.id
+  acl = "public-read"
+}
+
+## kubernetes
+
+apiVersion: apps/v1
+kind: pod
+metadata:
+  name: pathnex-pod
+spec:
+  containers:
+    - name: web
+      image: nginx:latest
+      ports:
+        - containerPort: 80
+
+
+# Rollback Strategies
+## Jenkins Pipeline - Automatic Rollback
+
+pipeline {
+    agent linux-12
+    environment {
+        INSTITUTE_NAME = "Pathnex"
+	TEAM = "DevOps"
+	ENV = "prod"
+    }
+    stages {
+        stage('Deploy') {
+	    steps {
+	        script {
+		    try {
+		        sh 'echo "Deploying $INSTITUTE_NAME app in $ENV for $TEAm"'
+			sh 'exit 1' // simulate failure
+		    }
+		    catch (Exception e) {
+		        echo "Deployment failed. Rolling back $INSTITUTE_NAME app in $ENV"
+		    }
+		}
+	    }
+	}
+    }
+}
+
+
+## GitLab CI 
+
+stages:
+  - deploy
+
+variables:
+  INSTITUTE_NAME: "Pathnex"
+  TEAM = "DevOps"
+  ENV = "prod"
+
+deploy:
+  stage: deploy
+  image: alpine:latest
+  script:
+    - echo "Deploying $INSTITUTE_NAME app in $ENV for $TEAM"
+    - exit 1
+  after_script:
+    - echo "Deployment failed. Rolling back $INSTITUTE_NAME app in $ENV"
