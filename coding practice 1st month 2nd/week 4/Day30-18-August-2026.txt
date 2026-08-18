@@ -1,0 +1,215 @@
+# Day 30 - SPEED TYPING
+
+## Ansible 
+
+# Create User
+
+---
+- name: Create Pathnex User
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Create user pathnex-admin
+      user:
+        name: pathnex-admin
+    shell: /bin/bash
+
+
+# Add SSH Key
+
+---
+- name: Add SSH Key
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Add SSH Key
+      authorized_key:
+        user:
+    state: present
+    key: "{{ lookup('file', '`/.ssh/id_rsa.pub') }}"    
+
+# Set Shell
+
+---
+- name: Set Shell
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Set Shell to /bin/bash
+      user:
+        name:
+    shell: /bin/bash
+
+
+## Terraform - EC2 with Tags
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_instance" "PathnexEC2" {
+  ami           = "ami-0abcd1234abcd1234"
+  instance_type = "c5.xlarge"
+
+  tags = {
+    Name        = "Pathnex-Server"
+    Environment = "Training"
+    Owner       = "PathnexStudent"
+  }
+}
+
+## Kubernetes 
+
+# Deployment
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pathnex-deploy
+  namespace: pathnex-namespace
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pathnex
+  template:
+    metadata:
+      labels:
+        app: pathnex
+    spec:
+      containers:
+        - name: app
+	  image: nginx
+
+
+# Expose via ClusterIP
+
+---
+- hosts: master
+  tasks:
+    - name: Expose deployment via ClusterIP
+      shell: |
+        kubectl expose deployment nginx \
+    --port=80 \
+    --target-port=80 \
+    --type=ClusterIP
+
+
+## Shell Script
+
+#!/bin/bash
+
+echo "==== Menu ===="
+
+echo
+echo "1.IP Address"
+hostname -I
+
+echo
+echo "2.Disk Usage"
+df -h
+
+echo
+echo "3.Memory Usage"
+free -h
+
+## Jenkins
+
+pipeline {
+    agent any
+    environment {
+        INSTITUTE_NAME = "Pathnex"
+	TEAM           = "DevOps"
+	ENV            = "prod"
+	PROJECT        = "Pathnex-Training"
+    }
+
+    stages {
+        stage('Infrastructure') {
+	    steps {
+	        sh '''
+		terraform init
+		terraform apply -auto-approve \
+		-var="project=${PROJECT}"
+		'''
+	    }
+	}
+
+	stage('App Deployment') {
+	    steps {
+	        sh '''
+		ansible-playbook user_setup.yml
+		ansible-playbook ssh_setup.yml
+
+		kubectl apply -f deployment.yml
+		kubectl apply -f service.yml
+		'''
+	    }
+	}
+
+	stage('Monitoring Checks') {
+	    steps {
+	        sh '''
+		echo " SERVER INFO "
+
+		echo "IP Address:"
+		hostname -I
+
+		echo "Disk Usage:"
+		df -h
+		
+		echo "Memory Usage:"
+		free -m
+		'''
+	    }
+	}
+    }
+}
+
+## GitLab CI
+
+stages:
+  - infrastructure
+  - app_deployment
+  - monitoring_checks
+
+variables:
+  INSTITUTE_NAME: "Pathnex"
+  TEAM: "DevOps"
+  ENV: "prod"
+  PROJECT: "Pathnex-Training"
+
+infrastructure:
+  stage: infrastructure
+
+  script:
+    - terraform init
+    - terraform apply -auto-approve -var="project=$PROJECT"
+
+app_deployment:
+  stage: app_deployment
+
+  script:
+    - ansible-playbook user_setup.yml
+    - ansible-palybook ssh_setup.yml
+
+    - kubectl apply -f deployment.yml
+    - kubectl apply -f service.yml
+
+monitoring_checks:
+  stage: monitoring_checks
+
+  script:
+    - echo "SERVER INFO"
+
+    - echo "IP Address:"
+    - hostname -I
+
+    - echo "Disk Usage:"
+    - df -h
+
+    - echo "Memory Usage:"
+    - free -m
